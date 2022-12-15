@@ -1,0 +1,86 @@
+{% extends 'flatpages/default.html' %}
+
+{% load custom_tags %}
+
+{% load custom_filters %}
+
+{% block title %}Новостной портал - добавить{% if request.META.PATH_INFO == "/articles/create/" %} статью{% else %} новость{% endif %}{% endblock title %}
+
+{% block search %}
+<form action="/search" method="get"><input type="text" size="35" name="s_string"><input type="submit" value="Найти"></form>
+{% endblock search %}
+
+
+
+{% block js %}
+
+
+<script language="JavaScript">
+function post_create(event) {
+        event.preventDefault();
+        let postTi = $('#n_title').val();
+        let postTx = $('#n_text').val();
+        let postTa = $('#n_author').val();
+        let postTt = $('#n_type').val();
+        let postCn = '';
+        {% for ch_b in view.cat_list %}
+        if ($('#cn{{ch_b.id}}').is(':checked')) {postCn += {{ch_b.id}};}
+        {% endfor %}
+        $.ajax({
+            url: '{{ request.META.PATH_INFO }}',
+            method: 'POST',
+            data: {'n_title':postTi,'n_text':postTx,'cn':postCn,'n_author':postTa,'n_type':postTt,csrfmiddlewaretoken:'{{ csrf_token }}'},
+            success: function (data, s, xhr) {
+            if (data == '<br><br><center><b>НОВОСТЬ СОХРАНЕНА</b></center>' || data == '<br><br><center><b>СТАТЬЯ СОХРАНЕНА</b></center>') {
+                document.getElementById('page_error').innerHTML = data;
+                document.getElementById('page_body').innerHTML = '';
+                setTimeout('history.back()',1000);
+            }
+            else {
+                document.getElementById('page_error').innerHTML = data;
+            }
+            }
+        })
+    }
+</script>
+
+
+{% endblock js %}
+
+{% block content %}
+
+{% if request.META.HTTP_REFERER %}
+<br><a href="javascript:history.back()">Назад</a><br><br>
+{% endif %}
+<br>
+<div id="page_body">
+<br>
+<b>СОЗДАНИЕ {% if request.META.PATH_INFO == "/articles/create/" %}СТАТЬИ{% else %}НОВОСТИ{% endif %}</b><br><br>
+<form action="" method="POST" onsubmit="javascript:post_create(event)">
+    {% csrf_token %}
+<table cellspacing="0" cellpadding="2">
+    <tr><td colspan="2">
+        <b>Заголовок:</b> <input type="text" size="104" name="n_title" value="{{ n_title }}" id="n_title">
+    </td><td>
+    <input type="submit" value="Создать">
+    </td></tr><tr><td width="150px" valign="top">
+        <b>Теги:</b><br>
+        {% for cl in view.cat_list %}
+            <input type="checkbox" name="cn" id="cn{{cl.id}}" value="{{cl.id}}" {% if request.POST|cb_get:cl.id %}  checked {% endif %}> {{ cl.cat_name }}<br>
+        {% endfor %}
+    </td>
+    <td bgcolor="black" colspan="2">
+        <textarea cols="110" rows="10" name="n_text" id="n_text">{{ n_text }}</textarea>
+    </td>
+    </tr><tr><td>
+    </td><td colspan="2">
+        <input type="hidden" name="n_author" size="1" style="width:600px" id="n_author" value="{{ user.get_username }}">
+    </td></tr>
+</table>
+<input type="hidden" id="n_type" name="n_type" value="{% if request.META.PATH_INFO == "/articles/create/" %}1{% else %}0{% endif %}">
+</form>
+<br><br>
+</div>
+<div id="page_error"></div>
+
+{% endblock content %}

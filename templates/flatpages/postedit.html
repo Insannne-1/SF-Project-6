@@ -1,0 +1,102 @@
+{% extends 'flatpages/default.html' %}
+
+{% load custom_tags %}
+
+{% load custom_filters %}
+
+{% block title %}Новостной портал - редактировать{% if request.META.PATH_INFO|truncatechars:10 == "/articles…" %} статью{% else %} новость{% endif %}{% endblock title %}
+
+{% block js %}
+
+
+<script language="JavaScript">                                              {# сброс и запись, чтобы сохранить поле возврата назад #}
+{# подключаем Ajax - не будем подгружать стрницу - только элементы #}
+function post_savechanges(event) {                                          {# функция создания post-запроса #}
+        event.preventDefault();                                             {# не перезагружать страницу #}
+        let postId = $('#p_id').val();                                      {# забьем данные из форм в новый запрос #}
+        let postTi = $('#p_header').val();
+        let postTx = $('#p_text').val();
+        let postCn = '';
+        {% for ch_b in view.cat_list %}                                     {# в т.ч. чекбоксы в уже нечитабельной форме для классического post #}
+        if ($('#cn{{ch_b.id}}').is(':checked')) {postCn += {{ch_b.id}};}    {# создадим список, который обработаем уже на сервере по-своему #}
+        {% endfor %}
+        $.ajax({                                                            {# делаем запрос #}
+            url: '{{ request.META.PATH_INFO }}',                            {# адрес текущей страницы #}
+            method: 'POST',
+            data: {'p_id':postId,'p_header':postTi,'p_text':postTx,'cn':postCn,csrfmiddlewaretoken:'{{ csrf_token }}'},     {# соберем все поля форм в пакет #}
+            success: function (data, s, xhr) {                              {# возвращаем ответ #}
+            document.getElementById('resp_ans').innerHTML = data;           {# выведем его рядышком с моим старым вариантом с перезагрузкой #}
+
+            if (data == '<b>*** ПУБЛИКАЦИЯ УСПЕШНО СОХРАНЕНА ***</b>') {    {# установим новые сохраненные данные для функции формы reset (дефолты инпутов) #}
+                document.getElementById('p_header').defaultValue = postTi;
+                document.getElementById('p_text').defaultValue = postTx;
+                var postCna = postCn.split('');                             {# с чекбоксами сложнее - забьем элементы в массив и затем проверим каждый на совпадение #}
+                {% for ch_b in view.cat_list %}
+                if (postCna.includes('{{ch_b.id}}')) {document.getElementById('cn{{ch_b.id}}').defaultChecked = true;}  {# был отправлен? - тогда будет по-дефолту #}
+                else {document.getElementById('cn{{ch_b.id}}').defaultChecked = false;}
+                {% endfor %}
+            }
+            }
+        })
+    }
+</script>
+
+{% endblock js %}
+
+
+{% block search %}
+<form action="/search" method="get"><input type="text" size="35" name="s_string"><input type="submit" value="Найти"></form>
+{% endblock search %}
+
+{% block content %}
+
+{# этого, конечно же, не может произойти, но всё же подстрахуемся : #}
+{% if request.META.PATH_INFO|truncatechars:10 == "/articles…" and edit_post.type != 1 or request.META.PATH_INFO|truncatechars:10 != "/articles…" and edit_post.type == 1 %}
+<center><b>ОШИБКА ТИПА РЕДАКТИРУЕМОЙ ПУБЛИКАЦИИ (НОВОСТЬ / СТАТЬЯ))</b></center>
+{% else %}
+
+{% if request.META.HTTP_REFERER %}
+<a href="javascript:history.back()">Назад</a><br>
+{% endif %}
+<br><b>РЕДАКТИРОВАНИЕ {% if edit_post.type == 1 %}СТАТЬИ{% else %}НОВОСТИ{% endif %}</b><br><br>
+
+<form action="" method="POST" onsubmit="javascript:post_savechanges(event)">
+    {% csrf_token %}
+    <input type="hidden" name="p_id" value="{{ edit_post.id }}" id="p_id">
+    <table cellspacing="0" cellpadding="2">
+        <tr><td colspan="2">
+            <b>Заголовок:</b>
+            <input type="text" size="104" name="p_header" id="p_header" value="{% if post_header %}{{ post_header }}{% else %}{{ edit_post.header }}{% endif %}">
+        </td><td>
+            <input type="submit" value="Сохранить"> <input type="reset" value="Сбросить">
+        </td></tr><tr><td width="150px" valign="top">
+            <b>Теги:</b><br>
+            {% for cl in view.cat_list %}
+                <input type="checkbox" name="cn" id="cn{{cl.id}}" value="{{cl.id}}"
+                {% if post_header %}
+                    {% if request.POST|cb_get:cl.id %} checked{% endif %}
+                    {% else %}
+                        {% for a in edit_post.id|post_tags_id %}{% if cl.id == a %} checked{% endif %}{% endfor %}
+                    {% endif %}
+                > {{ cl.cat_name }}<br>
+            {% endfor %}
+        </td><td bgcolor="black" colspan="2">
+            <textarea cols="125" rows="10" name="p_text" id="p_text"
+            value="{% if post_text %}{{ post_text }}{% else %}{{ edit_post.text }}{% endif %}"
+            >{% if post_text %}{{ post_text }}{% else %}{{ edit_post.text }}{% endif %}</textarea>
+        </td></tr><tr><td height="50px">
+        {% if user.is_superuser %}<b>АВТОР:</b>
+        {% endif %}
+        </td><td colspan="2">
+        {% if user.is_superuser %}
+        <b>{{ edit_post.author.user.username }}</b> ({{ edit_post.author.user.first_name }} {{ edit_post.author.user.last_name }})
+        {% endif %}
+        </td></tr>
+    </table>
+
+<br><br>
+<div id="resp_ans"></div><br><br>                                       {# а это новый вариант вывода сообщения без рефреша #}
+
+{% endif %}
+
+{% endblock content %}

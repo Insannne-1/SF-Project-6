@@ -1,0 +1,41 @@
+{% extends 'flatpages/default.html' %}
+
+{% block title %}Новостной портал - Авторизация{% endblock title %}
+{% block js %} {% endblock js %}
+
+{% block content %}
+
+{% if not user.is_authenticated %}
+
+<br><br>
+<center>
+    <table cellspacing="0" cellpadding="0">
+        <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        <tr><td width="100px" height="50px">
+            Логин:
+        </td><td>
+            <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username" maxlength="150" required id="id_username">
+        </td></tr>
+        <tr><td height="50px">
+            Пароль:
+        </td><td>
+            <input type="password" name="password" autocomplete="current-password" required id="id_password">
+        </td></tr>
+        <tr><td colspan="2" align="center" valign="middle" height="100px">
+            <input type="submit" value="Войти">
+            <input type="hidden" name="next" value="{{ next }}">
+        </td></tr>
+    </table>
+</form>
+</center>
+
+{% else %}
+<br><br><br>
+<center>
+    <font size="6pt">Ошибка: вход уже выполнен</font>
+</center>
+
+{% endif %}
+
+{% endblock %}

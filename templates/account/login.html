@@ -1,0 +1,71 @@
+{% extends "account/default.html" %}
+
+{% load custom_filters %}
+
+{% load i18n %}
+{% load account socialaccount %}
+
+{% block title %}Новостной портал - Авторизация{% endblock %}
+
+{% block js %}
+{% endblock js %}
+
+{% block content %}
+
+{% get_providers as socialaccount_providers %}
+
+{% if not user.is_authenticated %}
+
+<center>
+<table bgcolor="white" cellspacing="0" cellpadding="0">
+  <tr><td colspan="3" style="padding-top:25px;padding-left:50px;padding-right:50px">
+    {% if socialaccount_providers %}
+      Вы можете войти на сайт, используя свою существующую учетную запись в социальных сетях:<br>
+      {% include "socialaccount/snippets/provider_list.html" with process="login" %}
+      Либо пройдите процедуру регистрации <a href="/accounts/signup/">здесь</a> и войдите на сайт, используя новую учетную запись.
+    {% include "socialaccount/snippets/login_extra.html" %}
+    {% else %}
+    {% blocktrans %}
+      Если Вы еще не зарегистрировались, то можете зделать это <a href="/accounts/signup/">здесь</a>
+    {% endblocktrans %}
+    {% endif %}
+    <br><br>
+  </td></tr>
+  <tr><td height="40px">
+    <form class="login" method="POST" action="/accounts/login/">
+    {% csrf_token %}
+    E-mail
+  </td><td>
+    <input type="email" name="login" required id="id_login">
+  </td><td></td></tr><tr><td height="40px">
+    Пароль
+  </td><td>
+    <input type="password" name="password" readonly onfocus="this.removeAttribute('readonly')" required id="id_password">
+  </td><td></td></tr>
+  <tr><td height="40px">
+    запомнить
+  </td><td>
+    <input type="checkbox" name="remember" id="id_remember">
+  </td><td></td></tr><tr><td></td><td>
+    <input class="primaryAction" type="submit" value="Войти">
+  </td><td></td></tr>
+  <tr><td height="50px"></td><td>
+    <a href="/accounts/password/reset/">Забыли пароль?</a>
+  </form>
+  </td><td></td></tr>
+</table>
+  {% if form.non_field_errors %}
+  <br>{{ form.non_field_errors | ovrd_mess | safe }}
+  {% endif %}
+</center>
+
+{% else %}
+<br><br><br>
+<center>
+    <font size="6pt">Ошибка: вход уже выполнен</font>
+</center>
+
+{% endif %}
+
+
+{% endblock %}

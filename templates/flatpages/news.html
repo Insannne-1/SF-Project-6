@@ -1,0 +1,123 @@
+{% extends 'flatpages/default.html' %}      {# укажем на шаблон #}
+{% load custom_filters %}                   {# подключим файл с фильтрами #}
+{% load custom_tags %}
+
+
+{% block title %}Новостной портал{% endblock title %}               {# передадим эту переменную в шаблон "default" #}
+
+{% block search %}
+<form action="/search" method="get"><input type="text" size="35" name="s_string"><input type="submit" value="Найти"></form>
+{% endblock search %}
+
+{% block js %}
+{% endblock js %}
+
+{% block content %}
+
+
+<div id="cat_s" style="font-size:12px">
+    <b>Теги:</b> <a href="/news/" style="color:black">(все)</a>
+{% for tag in view.list_tags %}
+<a{% if request.GET.tags|floatformat == tag.id|floatformat %} href="/news/" style="background-color:orange;color:black"
+{% else %} href="/news/?tags={{tag.id}}"{% endif %}>{{tag.cat_name}}</a>
+{% endfor %}
+</div>
+
+<font size="5pt">Публикации ({{ paginator.count }})</font>
+
+{% if request.GET.tags|tby_id %}
+ - раздел &quot;{{ request.GET.tags|tby_id }}&quot;
+{% if user.is_active and user.email %}
+{% if user.id|is_subscriber:request.GET.tags %}
+<font style="font-size:12px"><u>вы подписаны.</u></font>
+<a href="{{request.META.PATH_INFO}}{{request.META.QUERY_STRING|s_u:'unsubscribe=me'}}" style="color:black;background-color:magenta;font-size:12px">отписаться</a>
+{% else %}
+<a href="{{request.META.PATH_INFO}}{{request.META.QUERY_STRING|s_u:'subscribe=me'}}" style="color:white;background-color:black;font-size:12px">подписаться</a>
+{% endif %}
+{% endif %}
+{% endif %}
+
+
+
+
+
+{% if user.is_active and user.groups|lqs:'Authors' or user.is_active and user.groups|lqs:'Moderators' or user.is_superuser %}
+    <br>Добавить {%if user.id|chk_n_create %}<a href="/news/create/" style="font-size:15px;background-color:black;color:white;text-decoration:none;">новость</a>{% endif %}
+    <a href="/articles/create/" style="font-size:15px;background-color:black;color:white;text-decoration:none;">статью</a>
+{% endif %}
+
+<br>
+<table cellspacing="0" width="100%">
+{% for news in news_all %}                  {# переберем все новости #}
+    <tr><td colspan="2">
+
+{% if user.is_active and user.groups|lqs:'Authors' or user.is_active and user.groups|lqs:'Moderators' or user.is_superuser %}
+{% if user.get_username and user.get_username == news.author.user.username or user.email and user.email == news.author.user.email or user.is_superuser %}
+{{ news.id | postedit:news.type | safe }} {{ news.id | postrem:news.type | safe }}
+{% endif %}
+{% endif %}
+        <br>
+        <font size="2pt" style="font-style:italic">{{news.m_of_creation | d_normal}}</font><br>
+        <font size="2pt" style="font-style:italic">
+            <b>{{news.type | post_type}}</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            Теги: {{ news.id | post_tags | safe }}
+
+        </font><br>
+        <a class="h6" href="/news/{{ news.id }}">{{ news.header | censor }}</a><br>
+    </td></tr><tr><td colspan="2">
+        <font class="H5"> {{ news.text | censor | truncatechars:80 }} - <i>(сокращенно)</i></font><br>
+    </td></tr><tr><td>
+        &nbsp;&nbsp;Рейтинг: {{news.rating}}
+    </td><td align="right">
+        <i>Автор:
+            {% if news.author.user.first_name and news.author.user.last_name %}
+            {{ news.author.user.first_name }} {{ news.author.user.last_name }}
+            {% else %}
+            {% if news.author.user.username %}
+            {{ news.author.user.username }}
+            {% else %}
+            {{ news.author.user.email }}
+            {% endif %}
+            {% endif %}
+        </i>
+            {% if user.is_authenticated %}
+            {% if user.get_username == news.author.user.username or user.email == news.author.user.email %}
+            <b>( Вы )</b>
+            {% endif %}
+            {% endif %}
+    </td></tr><tr><td colspan="2" height="1px" bgcolor="black">
+    </td></tr>
+{% endfor %}
+</table>
+<br>
+
+    {% if paginator.num_pages > 1 %}                                    {# если страниц больше, чем одна, то ... #}
+        <center>
+        {% if page_obj.number > 2 %}                                    {# добавим ссылку "В начало", если это уместно и логично #}
+            <a href="?page=1{% if request.GET.tags|tby_id %}&tags={{ request.GET.tags }}{% endif %}">В начало</a> ...
+        {% endif %}
+        {% for pn in paginator.page_range %}                            {# ... пробежимся в цикле по всем имеющимся страницам (это ПРОСТО ЗАГОТОВКА) #}
+            {% if pn < page_obj.number %}                               {# страницы "до" текущей #}
+                {% if pn == page_obj.previous_page_number %}            {# только одна предыдущая страница #}
+                <a href="?page={{ pn }}{% if request.GET.tags|tby_id %}&tags={{ request.GET.tags }}{% endif %}">{{ pn }}</a>
+                {% endif %}
+            {% endif %}
+            {% if pn == page_obj.number %}                              {# текущая страница #}
+                {{ page_obj.number }}
+            {% endif %}
+            {% if pn > page_obj.number %}                               {# страницы "после" текущей #}
+                {% if pn == page_obj.next_page_number %}                {# только одна следующая #}
+                    <a href="?page={{ pn }}{% if request.GET.tags|tby_id %}&tags={{ request.GET.tags }}{% endif %}">{{ pn }}</a>
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.next_page_number != paginator.num_pages %}       {# добавим ссылку "В конец", если это уместно и логично #}
+            ... <a href="?page={{ paginator.num_pages }}{% if request.GET.tags|tby_id %}&tags={{ request.GET.tags }}{% endif %}">В конец</a>
+        {% endif %}
+        </center>
+    {% endif %}
+
+
+
+
+{% endblock content %}

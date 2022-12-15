@@ -1,0 +1,60 @@
+{% extends "account/default.html" %}
+
+{% load custom_filters %}
+
+{% load i18n %}
+
+{% block title %}Новостной портал - регистрация{% endblock %}
+
+{% block js %}
+{% endblock js %}
+
+{% block content %}
+
+{% if not user.is_authenticated %}
+
+<center>
+<table bgcolor="white" cellspacing="0" cellpadding="0">
+  <tr><td colspan="3" style="padding-top:25px;padding-left:50px;padding-right:50px">
+    У Вас уже есть учетная запись? Тогда авторизируйтесь, перейдя по <a href="/accounts/login/">ссылке</a>.
+    <br><br>
+  </td></tr>
+  <tr><td height="60px" width="200px">
+    <form class="signup" id="signup_form" method="post" action="/accounts/signup/">
+    {% csrf_token %}
+    E-mail
+  </td><td>
+    <input type="email" name="email" placeholder="" autocomplete="email" required id="id_email">
+  </td><td width="400px" valign="middle" style="padding-left:10px">
+  {% if form.email.errors %}<font size="2pt">{{ form.email.errors | ovrd_mess | safe }}</font>{% endif %}
+  </td></tr><tr><td height="60px">
+    Пароль
+  </td><td>
+    <input type="password" name="password1" placeholder="" autocomplete="new-password" required id="id_password1">
+  </td><td valign="middle" style="padding-left:10px">
+  {% if form.password1.errors %}<font size="2pt">{{ form.password1.errors | ovrd_mess | safe }}</font>{% endif %}
+  </td></tr>
+  <tr><td height="60px">
+    Подтверждение пароля
+  </td><td>
+    <input type="password" name="password2" placeholder="" autocomplete="new-password" required id="id_password2">
+  </td><td valign="middle" style="padding-left:10px">
+    {% if form.password2.errors %}
+    <font size="2pt">{{ form.password2.errors | ovrd_mess | safe }}</font>
+    {% endif %}
+  </td></tr><tr><td height="60px"></td><td>
+    <input type="submit" value="Регистрация">
+  </td><td></td></tr>
+  </form>
+</table>
+</center>
+
+{% else %}
+<br><br><br>
+<center>
+    <font size="6pt">Ошибка: вход уже выполнен</font>
+</center>
+
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends 'flatpages/default.html' %}                          {# шаблон #}
+{% load custom_filters %}                                       {# наши фильтры... #}
+{% load custom_tags %}                                          {# ...и теги.. подгружены #}
+{% block search %}{% endblock search %}                         {# строка поиска из шапки здесь неуместна - ведь это и есть страница поиска #}
+{% block title %}Новостной портал - Поиск{% endblock title %}
+
+{% block js %}
+{% endblock js %}
+
+{% block content %}
+<br>
+<form action="/search" method="get">
+<table cellspacing="0" cellpadding="2">
+    <tr><td colspan="2">
+        <input type="text" size="98" name="s_string" value="{{ request.GET.s_string }}">
+    </td><td>
+    <input type="submit" value="Найти">
+    </td></tr><tr>
+    <td rowspan="2" width="150px" valign="top">
+        <input type="radio" name="t" value="" {% if request.GET.t == '' %} checked {% endif %}> Нет категории<br>
+        <input type="radio" name="t" value="0" {% if request.GET.t == '0' %} checked {% endif %}> Новости<br>
+        <input type="radio" name="t" value="1" {% if request.GET.t == '1' %} checked {% endif %}> Статьи
+    </td>
+    <td>
+        Автор: <input type="text" size="70" name="s_a" value="{{ request.GET.s_a }}">
+    </td></tr><tr><td style="padding-left: 52px">
+    {% for cl in view.cat_list %}
+        <input type="checkbox" name="cn" value="{{cl.id}}" {% if request.GET|cb_get:cl.id %}  checked {% endif %}> {{ cl.cat_name }}<br>
+    {% endfor %}
+    <br>
+    </td><td></td></tr><tr><td clospan="2">
+        <input type="date" name="date"
+        value="{% if request.GET|check_date == False %}{% date_end %}{% else %}{{request.GET|check_date}}{% endif %}" min="{% date_begin %}" max="{% date_end %}">
+    </td>
+    <td>
+        <input type="checkbox" name="exac_date" value="1" {% if request.GET.exac_date %} checked {% endif %}> За указанную дату<br>
+    </td></tr>
+</table>
+</form>
+<br>
+
+<table border="0" cellspacing="0" cellpadding="0" width="100%">
+
+
+{% if not main_search %}
+    <tr><td><br><center><b>НИЧЕГО НЕ НАЙДЕНО</b></center></td></tr>
+{% endif %}
+
+{% for s_res in main_search %}
+<tr><td colspan="2">
+{% if user.is_active and user.groups|lqs:'Authors' or user.is_active and user.groups|lqs:'Moderators' or user.is_superuser %}
+{% if user.get_username and user.get_username == s_res.author|gt:'username' or user.email and user.email == s_res.author|gt:'email' or user.is_superuser %}
+{{ s_res.id | postedit:s_res.type | safe}} {{ s_res.id | postrem:s_res.type | safe}}<br>
+{% endif %}
+{% endif %}
+<br>
+    <font size="2pt" style="font-style:italic">{{s_res.m_of_creation | d_normal}}</font><br>
+        <font size="2pt" style="font-style:italic">
+            <b>{{s_res.type | post_type}}</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            Теги: {{ s_res.id | post_tags | safe }}
+        </font><br>
+    <a class="h6" href="/news/{{ s_res.id }}">{{ s_res.header | censor }}</a><br>
+</td></tr><tr><td colspan="2">
+   <font class="H5"> {{ s_res.text | censor | truncatechars:80 }} - <i>(сокращенно)</i></font><br>
+</td></tr><tr><td align="right">
+    <i>Автор: {{ s_res.author | post_author }}</i>
+</td></tr><tr><td colspan="2" height="1px" bgcolor="grey"></td></tr>
+
+{% endfor %}
+
+</table>
+
+
+
+{% if paginator.num_pages > 1 %}
+    <center>
+    {% if page_obj.number > 2 %}
+        <a href="?{{ request.META.QUERY_STRING | del_page }}&page=1">В начало</a> ...
+    {% endif %}
+    {% for pn in paginator.page_range %}
+        {% if pn < page_obj.number %}
+            {% if pn == page_obj.previous_page_number %}
+            <a href="?{{ request.META.QUERY_STRING | del_page }}&page={{ pn }}">{{ pn }}</a>
+            {% endif %}
+        {% endif %}
+        {% if pn == page_obj.number %}
+            {{ page_obj.number }}
+        {% endif %}
+        {% if pn > page_obj.number %}
+            {% if pn == page_obj.next_page_number %}
+                <a href="?{{ request.META.QUERY_STRING | del_page }}&page={{ pn }}">{{ pn }}</a>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+    {% if page_obj.next_page_number != paginator.num_pages %}
+        ... <a href="?{{ request.META.QUERY_STRING | del_page }}&page={{ paginator.num_pages }}">В конец</a>
+    {% endif %}
+    </center>
+{% endif %}
+
+
+
+
+{% endblock content %}

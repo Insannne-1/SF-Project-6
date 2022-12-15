@@ -1,0 +1,67 @@
+{% extends 'flatpages/default.html' %}
+{% load custom_tags %}
+{% load custom_filters %}
+
+{% block title %}Новостной портал - удаление{% if request.META.PATH_INFO|truncatechars:10 == "/articles…" %} статьи
+{% else %} новости{% endif %}{% endblock title %}
+
+{% block search %}
+<form action="/search" method="get"><input type="text" size="35" name="s_string"><input type="submit" value="Найти"></form>
+{% endblock search %}
+
+{% block js %}
+<script language="JavaScript">
+function post_delete(event) {
+        event.preventDefault();
+        let postId = $('#p_id').val();
+        $.ajax({
+            url: '{{ request.META.PATH_INFO }}',
+            method: 'POST',
+            data: {'p_id':postId,csrfmiddlewaretoken:'{{ csrf_token }}'},
+            success: function (data, s, xhr) {
+            document.getElementById('page_body').innerHTML = data;
+            if (data == '<br><br><br><center><b>*** ПУБЛИКАЦИЯ УДАЛЕНА ***</b></center>') {
+            {% if request.META.HTTP_REFERER|get_post_id == rem_post.id %}       {# если сюда перешли со страницы просмотра новости, то после удаления - #}
+                setTimeout('history.go(-2)',1000);                              {# - следует вернуться на два шага назад, иначе попадём на несущ. страницу #}
+            {% else %}
+                setTimeout('history.back()',1000);
+            {% endif %}
+            }
+            }
+        })
+    }
+</script>
+{% endblock js %}
+
+{% block content %}
+
+{% if request.META.HTTP_REFERER %}
+<a href="javascript:history.back()">Назад</a><br>
+{% endif %}
+
+<br>
+
+{% if request.META.PATH_INFO|truncatechars:10 == "/articles…" and rem_post.type != 1 or request.META.PATH_INFO|truncatechars:10 != "/articles…" and rem_post.type == 1 %}
+<center><b>ОШИБКА ТИПА УДАЛЯЕМОЙ ПУБЛИКАЦИИ (НОВОСТЬ / СТАТЬЯ))</b></center>
+{% else %}
+
+<div id="page_body">
+    <br><b>УДАЛЕНИЕ {% if rem_post.type == 1 %}СТАТЬИ{% else %}НОВОСТИ{% endif %}</b><br><br>
+    <b>Дата</b>: {{ rem_post.m_of_creation | d_normal }}<br><br>
+    <b>Название:</b><br>{{ rem_post.header }}<br><br>
+    <b>Содержание:</b><br>{{ rem_post.text | html_cnv | safe }}<br><br>
+    <font color="red"><b>Автор:</b> {{ rem_post.author.user.first_name }} {{ rem_post.author.user.last_name }}</font><br><br>
+    <form action="" method="POST" onsubmit="javascript:post_delete(event)">
+        {% csrf_token %}
+        <input type="hidden" name="p_id" id="p_id" value="{{ rem_post.id }}">
+        <input type="submit" value="УДАЛИТЬ">
+    </form>
+</div>
+
+{% endif %}
+
+{% endblock content %}
+
+
+
+

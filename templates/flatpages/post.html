@@ -1,0 +1,79 @@
+{% extends 'flatpages/default.html' %}                          {# укажем на шаблон #}
+{% load custom_filters %}                                       {# подгрузим сюда файл с фильрами #}
+{% load custom_tags %}
+
+{% block title %}{{ post_view.header }}{% endblock title %}     {# передадим переменную с названием поста в шаблон "default" #}
+
+{% block search %}
+<form action="/search" method="get"><input type="text" size="35" name="s_string"><input type="submit" value="Найти"></form>
+{% endblock search %}
+
+{% block js %}
+{% endblock js %}
+
+{% block content %}
+
+
+<table cellspacing="0" width="100%">
+    <tr>
+    <td colspan="2" align="left">
+       {% if request.META.HTTP_REFERER %}<a href="javascript:history.back()">Назад</a>{% endif %}
+    </td>
+    </tr><tr>
+    <td colspan="2">
+
+        {# если пользователь - владелец поста, активен и в группе авторов либо это модератор и он активен либо администратор, то показать ссылки #}
+{% if user.is_active and user.groups|lqs:'Authors' or user.is_active and user.groups|lqs:'Moderators' or user.is_superuser %}
+{% if user.get_username and user.get_username == post_view.author.user.username or user.email and user.email == post_view.author.user.email or user.is_superuser %}
+{{ post_view.id | postedit_view:post_view.type | safe }} {{ post_view.id | postrem_view:post_view.type | safe }}<br>
+{% endif %}
+{% endif %}
+
+        <font size="2pt" style="font-style:italic">{{ post_view.m_of_creation | d_normal }}</font><br>
+        <font class="h6">{{ post_view.header | censor }}</font><br>
+        <font size="2pt" style="font-style:italic">
+        <b>{{ post_view.type | post_type }}</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        Теги: {{ post_view.id | post_tags | safe }}
+        </font><br>
+    </td></tr><tr>
+    <td colspan="2">
+        <font class="H5"> {{ post_view.text | censor | html_cnv | safe }}</font><br>
+    </td></tr><tr>
+    <td>
+        &nbsp;&nbsp;Рейтинг: {{ post_view.rating }}
+    </td>
+    <td align="right">
+        <i>Автор: {{ post_view.author.user.first_name }} {{ post_view.author.user.last_name }}</i>
+        {% if user.is_authenticated %}
+            {% if user.get_username == post_view.author.user.username %}
+            <b>( Вы )</b>
+            {% endif %}
+        {% endif %}
+    </td></tr>
+    <tr><td colspan="2" height="1px" bgcolor="black"></td></tr>
+</table>
+
+{% if comm %}                                                   {# если есть комментарии - выведем их #}
+    <br><br><font size="3"><b>Комментарии:</b></font><br>
+    <table cellspacing="0" width="100%">
+    {% for c in comm %}
+        <tr><td colspan="2">
+            <font size="2pt" style="font-style:italic">{{ c.m_of_comm | d_normal }}</font>
+        </td></tr><tr><td colspan="2">
+            <font class="H5"> {{ c.text | censor }}</font><br>
+        </td></tr><tr><td>
+            &nbsp;&nbsp;Рейтинг: {{c.rating}}
+        </td><td align="right">
+            <i>Автор: {{ c.user.first_name }} {{ c.user.last_name }}</i>
+        </td></tr><tr><td colspan="2" height="1px" bgcolor="grey">
+        </td></tr>
+    {% endfor %}
+    </table>
+{% else %}
+    <br><div align="left"><font size="3"><b>Нет комментариев</b></font></div>
+{% endif %}
+
+
+
+
+{% endblock content %}
