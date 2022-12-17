@@ -158,6 +158,8 @@ class ShortSearch(NeverCache, ListView):            # поиск с главно
         if (s_author):
             if len(s_author)>2:
                 flag_a=True;
+        if len(s_type) == 1 and flag_a != True:
+            flag_a = True;
 
         if flag_a:
 
