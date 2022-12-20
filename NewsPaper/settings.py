@@ -158,5 +158,17 @@ ACCOUNT_UNIQUE_EMAIL = True;
 ACCOUNT_USERNAME_REQUIRED = False;
 #ACCOUNT_SIGNUP_PASSWORD_VERIFICATION = False;
 
-LOGIN_REDIRECT_URL = '/news/';
+
+LOGIN_REDIRECT_URL = '/news/';                                  # зайдем и сразу сюда пойдем. и выйдем - тоже сюда
 LOGOUT_REDIRECT_URL = '/news/';
+
+
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL");
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND");
+CELERY_PORT = os.getenv("CELERY_PORT");                         # дальше запишу отдельно для создания объектов соответствующего класса:
+CELERY_PASSWORD = os.getenv("CELERY_PASSWORD");
+CELERY_ENDPOINT = os.getenv("CELERY_ENDPOINT");
+CELERY_ACCEPT_CONTENT = ['application/json'];                   # разрешенные форматы данных в сообщениях
+CELERY_TASK_SERIALIZER = 'json';                                # формат начального преобразрвания объекта (будет json)
+CELERY_RESULT_SERIALIZER = 'json';                              # формат выхода объекта
+

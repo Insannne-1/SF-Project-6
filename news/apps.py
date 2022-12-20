@@ -10,3 +10,4 @@ class NewsConfig(AppConfig):
         if os.environ.get('RUN_MAIN'):                          # сохраним перезагрузку, но запускать распиание рассылки будем только после теста
             from news.shedmail import send_articles;
             send_articles();
+

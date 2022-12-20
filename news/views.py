@@ -24,6 +24,7 @@ from .templatetags.custom_filters import d_normal, censor, html_cnv, get_author;
 
 from NewsPaper.settings import SERVER_EMAIL;
 
+from .tasks import send_news_announcement;
 
 
 class NeverCache(object):                                           # декоратор для запрета кеширования страниц (в случае переходов по истории)
@@ -154,12 +155,12 @@ class ShortSearch(NeverCache, ListView):            # поиск с главно
         """ После чего будем искать основную строку поиска сперва в заголовке поста, а уже после - в тексте """
         if (s_query):
             if len(s_query) > 2:
-                flag_a=True;
+                flag_a=True;                                                # стоит искать по запросу? - будем искать
         if (s_author):
             if len(s_author)>2:
-                flag_a=True;
+                flag_a=True;                                                # стоит искать по Автору? - будем искать
         if len(s_type) == 1 and flag_a != True:
-            flag_a = True;
+            flag_a = True;                                                  # может хотя бы тип публикации выбран? - тожу будем искать
 
         if flag_a:
 
@@ -260,6 +261,8 @@ class CreateNews(LoginRequiredMixin, TemplateView):                 # созда
                         category_names.append(Category.objects.get(id=int(n_category[i])).cat_name);
                     context["post_form"]="ACCEPTED";
                     context["post_error"]="<br><br><center><b>НОВОСТЬ СОХРАНЕНА</b></center>" if n_type==0 else "<br><br><center><b>СТАТЬЯ СОХРАНЕНА</b></center>";
+                    if int(n_type) == 0:                                                # если была создана новость -
+                        send_news_announcement.delay(post_id.id, n_category, a_id);     # - отправим уведомления подписчикам
 
                 else:
                     context["post_error"] = "<b>Ошибка</b>: Вы можете опубликовать не более трех новостей в сутки.";
