@@ -53,10 +53,10 @@
     <tr><td colspan="2" height="1px" bgcolor="black"></td></tr>
 </table>
 
-{% if comm %}                                                   {# если есть комментарии - выведем их #}
+{% if post_view.comm %}                                                   {# если есть комментарии - выведем их #}
     <br><br><font size="3"><b>Комментарии:</b></font><br>
     <table cellspacing="0" width="100%">
-    {% for c in comm %}
+    {% for c in post_view.comm %}
         <tr><td colspan="2">
             <font size="2pt" style="font-style:italic">{{ c.m_of_comm | d_normal }}</font>
         </td></tr><tr><td colspan="2">

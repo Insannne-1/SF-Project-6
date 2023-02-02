@@ -20,7 +20,7 @@ function post_delete(event) {
             data: {'p_id':postId,csrfmiddlewaretoken:'{{ csrf_token }}'},
             success: function (data, s, xhr) {
             document.getElementById('page_body').innerHTML = data;
-            if (data == '<br><br><br><center><b>*** ПУБЛИКАЦИЯ УДАЛЕНА ***</b></center>') {
+            if (data == '<br><br><br><center><b>*** ПУБЛИКАЦИЯ БУДЕТ УДАЛЕНА В ТЕЧЕНИИ ОДНОЙ МИНУТЫ ***</b></center>') {
             {% if request.META.HTTP_REFERER|get_post_id == rem_post.id %}       {# если сюда перешли со страницы просмотра новости, то после удаления - #}
                 setTimeout('history.go(-2)',1000);                              {# - следует вернуться на два шага назад, иначе попадём на несущ. страницу #}
             {% else %}

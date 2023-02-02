@@ -24,6 +24,9 @@
     </head>
     <body>
 
+        {% load cache %}
+
+        {% cache 600 menu %}
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark static-top">
             <div class="container">
                 <a class="navbar-brand" href="/news/">Новости</a>
@@ -52,6 +55,9 @@
 
                         {% block search %}{{ search }}{% endblock search %}         {# вставим "шапочную" строку поиска, если нужно #}
                         </td><td width="20px"></td><td>
+
+            {% endcache %}
+
                         <div style="padding-top:2px;width:160px;height:40px;line-height:15px;{% if user.is_authenticated %}background-color:white;{% endif %}" align="center" valign="middle">
 
                             {% if user.is_authenticated %}

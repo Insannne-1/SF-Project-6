@@ -1,39 +1,50 @@
-from django.shortcuts import render
 from django.views.generic import ListView, DetailView, TemplateView;
-
-from django.http import HttpResponse;
-
 from .models import Post, User, Author, Comment, Category, PostCategory, CategorySubscriber, main_p_per_page;
+
+from django.http import HttpResponse, Http404, HttpResponseNotFound;
+
 from datetime import datetime;
 
-import re;                                  # мне нужен поиск и замена по шаблону
+import re;                                                              # мне нужен поиск и замена по шаблону
+from django.db.models import Q;                                         # будем использовать логику ИЛИ при запросе к БД
 
 from django.contrib.auth.mixins import LoginRequiredMixin;
 from django.core.exceptions import PermissionDenied;
 
 from django.utils.decorators import method_decorator;
-from django.views.decorators.cache import never_cache;
-
-from django.db.models import Q;                                         # будем использовать логику ИЛИ при запросе к БД
+from django.views.decorators.cache import never_cache, cache_page;
+from django.core.cache import cache;
 
 from django.core.mail import send_mail, EmailMultiAlternatives;         # для отправки писем
+from NewsPaper.settings import SERVER_EMAIL;
 
 from django.template.loader import render_to_string;
+from django.shortcuts import render;
 
 from .templatetags.custom_filters import d_normal, censor, html_cnv, get_author;
-
-from NewsPaper.settings import SERVER_EMAIL;
 
 from .tasks import send_news_announcement;
 
 
-class NeverCache(object):                                           # декоратор для запрета кеширования страниц (в случае переходов по истории)
+
+# антикэш
+class NeverCache(object):
     @method_decorator(never_cache)
     def dispatch(self, *args, **kwargs):
         return super(NeverCache, self).dispatch(*args, **kwargs);
 
+# кеширование
+class DoCache(object):
+    t_out = 0;
+    def dispatch(self, *args, **kwargs):
+        if type(self).__name__ == "PostsPreview":
+            t_out = 60;
+        return cache_page(t_out)(super(DoCache, self).dispatch)(*args, **kwargs);
+""" я немного поменял тип кеширования, но этот миксин здесь пока оставлю. сейчас он не используется """
 
-class PostsPreview(NeverCache, ListView):       # все посты (для главной страницы - список новостей)
+
+
+class PostsPreview(NeverCache, ListView):       # все посты (для главной страницы - список новостей) - уберем кеширование на машине пользователя
     model = Post;                               # имя таблицы
     template_name = 'flatpages/news.html';      # файл, в котором переменная будет доступна
     context_object_name = 'news_all';           # имя "переменной", по которому она будет доступна в шаблоне
@@ -44,23 +55,54 @@ class PostsPreview(NeverCache, ListView):       # все посты (для гл
         w_tags = self.request.GET.get("tags");          # если есть - здесь будет сортировка по тегам (по категориям)
         w_sub = self.request.GET.get("subscribe");      # хочет подписаться?
         w_unsub = self.request.GET.get("unsubscribe");  # хочет отписаться?
+        n_page = self.request.GET.get("page");          # возьмём номер страницы в качестве метки для кеша
+        n_page = "1" if n_page == None else str(n_page);
+        if not n_page.isdecimal():
+            n_page = "1";                               # если пользователь вместо страницы написал что то непонятное
         user = self.request.user;
         sb_tags=0;
-        if w_tags:
+
+        e_tags = cache.get('newslist-alltags');         # возьмем список существующих категорий публикаций (только их id) - для запроса get
+        if not e_tags:
+            e_tags = [];
+            get_tags = list(Category.objects.all().values('id'));
+            for i in range(0, len(get_tags)):
+                e_tags.append(str(get_tags[i]['id']));
+            cache.set(f'newslist-alltags', e_tags, 300);
+
+        t_pages = cache.get('newslist-totalpages');     # посчитаем количество страниц (с учетом разбивки) и запишем в кеш, если ещё не записали
+        if not t_pages:
+            t_pages = Post.objects.all().count() / main_p_per_page;
+            cache.set(f'newslist-totalpages', t_pages, 30);
+
+        if (int(n_page) - t_pages) >= 1:                # указана несуществующая страница? - тогда закончим здесь
+            raise Http404;
+
+        if w_tags:                                      # указана несуществующая категория новостей? - тоже закончим на этом
+            if not w_tags in e_tags:
+                raise Http404;
             if w_tags.isdecimal():
                 sb_tags=1;
+
         if (sb_tags==1):
-            self.sb_set=Post.objects.filter(category=int(w_tags)).order_by('-m_of_creation');
+            self.sb_set = cache.get(f'newslist-{n_page}-{w_tags}', None);       # проверим страницы с выбранной категорией в кеше
+            if not self.sb_set:
+                self.sb_set=Post.objects.filter(category=int(w_tags)).order_by('-m_of_creation');
+                cache.set(f'newslist-{n_page}-{w_tags}', self.sb_set, 60);
         else:
-            self.sb_set = Post.objects.all().order_by('-m_of_creation');
+            self.sb_set = cache.get(f'newslist-{n_page}', None);                # проверим queryset в кеше (вместе с номером страницы). Нет? - тогда созданим новый
+            if not self.sb_set:
+                self.sb_set = Post.objects.all().order_by('-m_of_creation');
+                cache.set(f'newslist-{n_page}', self.sb_set, 60);
+
         """ проверим подписку пользователя, если он вдруг нажал на соответствующую ссылку """
         if (w_sub == "me" and w_unsub != "me" or w_sub != "me" and w_unsub == "me") and sb_tags == 1 and user.email and user.is_active:
             is_subbed = False;
             if Category.objects.filter(id=int(w_tags), subscriber=user.id).exists():
                 is_subbed = True;
-            if w_sub == "me":
+            if w_sub == "me" and is_subbed == False:
                 CategorySubscriber.objects.create(category_id=int(w_tags), user_id=user.id);
-            else:
+            elif is_subbed == True:
                 CategorySubscriber.objects.filter(category_id=int(w_tags), user_id=user.id).delete();
 
         return self.sb_set;
@@ -70,14 +112,31 @@ class PostsPreview(NeverCache, ListView):       # все посты (для гл
         return Category.objects.all().order_by('cat_name');
 
 
+
 class PostView(DetailView):                 # пост (для страницы с конкретной новостью - детальный вид)
     model = Post;
     template_name = 'flatpages/post.html';  # файл шаблона
     context_object_name = 'post_view';
-    def get_context_data (self, **kwargs):  # добавим еще доступных переменных
-        c = super().get_context_data(**kwargs);     # возьмем набор данных этой новости и забьем объект комментариями к этому посту
-        c['comm'] =Comment.objects.filter(post_id=self.object.id).order_by('-m_of_comm');   # запишем набор комментариев и имя переменной
+    queryset = Post.objects.all();
+
+    def get_object(self, *args, **kwargs):  # переопределяем метод получения объекта
+
+        c = cache.get(f'publication-{self.kwargs["pk"]}', None);
+        if not c:
+            c = super().get_object(queryset=self.queryset);
+            c.comm = Comment.objects.filter(post_id=self.kwargs['pk']).order_by('-m_of_comm');              # добавим в набор комментарии
+            if c.type == 0:                                                                                 # новость - кэш на 300, статья - бессрочно
+                cache.set(f'publication-{self.kwargs["pk"]}', c, 300);
+            else:
+                cache.set(f'publication-{self.kwargs["pk"]}', c, None);
+
+        string_query = self.request.META['PATH_INFO'];                                                      # соответствует ли тип - адресу?
+        if string_query[1:5] == 'news' and c.type != 0 or string_query[1:9] == 'articles' and c.type != 1:
+            raise Http404;
+
         return c;
+
+
 
 
 """ этот метод работал бы нормально и искал без учета регистра с любой другой SQL. Но с этой только вот так """
@@ -259,11 +318,12 @@ class CreateNews(LoginRequiredMixin, TemplateView):                 # созда
                     for i in range(0,len(n_category)):                          # заодно пополним связь с категориями публикаций
                         PostCategory.objects.create(post_id=post_id.id, category_id=int(n_category[i]));
                         category_names.append(Category.objects.get(id=int(n_category[i])).cat_name);
+                    cache.delete('newslist-totalpages');                        # обнулим кэш общего числа страниц
                     context["post_form"]="ACCEPTED";
-                    context["post_error"]="<br><br><center><b>НОВОСТЬ СОХРАНЕНА</b></center>" if n_type==0 else "<br><br><center><b>СТАТЬЯ СОХРАНЕНА</b></center>";
+                    tail = " ВСКОРЕ БУДЕТ ДОБАВЛЕНА";
+                    context["post_error"]=f"<br><br><center><b>НОВОСТЬ{tail}</b></center>" if n_type==0 else f"<br><br><center><b>СТАТЬЯ{tail}</b></center>";
                     if int(n_type) == 0:                                                # если была создана новость -
                         send_news_announcement.delay(post_id.id, n_category, a_id);     # - отправим уведомления подписчикам
-
                 else:
                     context["post_error"] = "<b>Ошибка</b>: Вы можете опубликовать не более трех новостей в сутки.";
             else:                                                                               # если форма не совпала с авторизацией:
@@ -340,6 +400,7 @@ class EditNews(LoginRequiredMixin, DetailView):                               # 
                     for i in range(0,len(n_category)):                                                              # добавим новые категории поста в БД
                         PostCategory.objects.create(post_id=int(context["post_id"]), category_id=int(n_category[i]));
                     context["post_error"] = "<b>*** ПУБЛИКАЦИЯ УСПЕШНО СОХРАНЕНА ***</b>";
+                    cache.delete(f'publication-{int(context["post_id"])}');                                         # удаляем старую версию из кэша
             if succ_f == 0:
                 context["post_error"] = f"<b>Ошибка</b>: Неисправность на сервере. Повторите процедуру изменения публикации.";
 
@@ -367,9 +428,9 @@ class RemNews(DetailView):                                                      
         if user.is_superuser:
             a_flag = 1;                                                                 # админу можно удалять любую публикацию
         if a_flag != 1:
-            raise PermissionDenied();                                                   # лично тебе сюда нельзя
+            raise PermissionDenied();                                                   # не владелец либо супер - отказать в доступе
         if not user.groups.filter(name__in=['Authors', 'Moderators']).exists() and not user.is_superuser:
-            raise PermissionDenied();
+            raise PermissionDenied();                                                   # и не в нужных группах - тоже отказ
         return c;
 
     def post(self, request, *args, **kwargs):                                                   # отправили сюда форму? тогда -
@@ -391,10 +452,12 @@ class RemNews(DetailView):                                                      
              or (self.request.user.is_superuser and self.object.id == int(context["post_id"]))\
              or (self.request.user.groups.filter(name='Moderators').exists() and self.object.id == int(context["post_id"])):
                 succ_f = 1;
+                cache.touch(f'publication-{int(context["post_id"])}', 60);                      # удаляем публикацию из кеша с задержкой
                 PostCategory.objects.filter(post_id=int(context["post_id"])).delete();          # удаляем связанные категории..
                 Comment.objects.filter(post_id=int(context["post_id"])).delete();               # ..связанные комментарии
                 Post.objects.filter(id=int(context["post_id"])).delete();                       # .. и саму публикацию
-                context["post_message"] = "<br><br><br><center><b>*** ПУБЛИКАЦИЯ УДАЛЕНА ***</b></center>";
+                context["post_message"] = "<br><br><br><center><b>*** ПУБЛИКАЦИЯ БУДЕТ УДАЛЕНА В ТЕЧЕНИИ ОДНОЙ МИНУТЫ ***</b></center>";
+                cache.delete('newslist-totalpages');                                            # обнулим кэш общего числа страниц
         if succ_f == 0:
             context["post_message"] = f"<br><br><b>Ошибка</b>: Неисправность на сервере. Повторите процедуру удаления публикации.";
 

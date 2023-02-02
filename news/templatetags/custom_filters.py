@@ -96,16 +96,20 @@ def postedit(x,t):                                                              
     if (t==1):
         x_link = f"../articles/{x}/edit/";
         x_tag = "статью";
-    return f"<a href='{x_link}' style='background-color:olive;color:black;text-decoration:none;'>редактировать {x_tag}</a>";
+    ret = f"<a href='{x_link}' style='background-color:olive;color:black;text-decoration:none;'>редактировать {x_tag}</a>";
+    ret = "" if not Post.objects.filter(id=int(x)).exists() else ret;           # на случай, если публикация уже удалена и мы смотрим не её кэш
+    return ret;
 
 @register.filter()
-def postrem(x,t):                                                                # возвращает ссылку на страницу удаления публикации
+def postrem(x,t):                                                               # возвращает ссылку на страницу удаления публикации
     x_link=f"../news/{x}/delete/";
     x_tag="новость";
     if (t==1):
         x_link = f"../articles/{x}/delete/";
         x_tag = "статью";
-    return f"<a href='{x_link}' style='background-color:red;color:black;text-decoration:none;'>удалить {x_tag}</a>";
+    ret = f"<a href='{x_link}' style='background-color:red;color:black;text-decoration:none;'>удалить {x_tag}</a>";
+    ret = "" if not Post.objects.filter(id = int(x)).exists() else ret;
+    return ret;
 
 @register.filter()
 def postedit_view(x,t):                                                          # возвращает ссылку на страницу редактирования публикации

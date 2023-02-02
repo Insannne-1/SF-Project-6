@@ -31,7 +31,7 @@ function post_create(event) {
             method: 'POST',
             data: {'n_title':postTi,'n_text':postTx,'cn':postCn,'n_author':postTa,'n_type':postTt,csrfmiddlewaretoken:'{{ csrf_token }}'},
             success: function (data, s, xhr) {
-            if (data == '<br><br><center><b>НОВОСТЬ СОХРАНЕНА</b></center>' || data == '<br><br><center><b>СТАТЬЯ СОХРАНЕНА</b></center>') {
+            if (data == '<br><br><center><b>НОВОСТЬ ВСКОРЕ БУДЕТ ДОБАВЛЕНА</b></center>' || data == '<br><br><center><b>СТАТЬЯ ВСКОРЕ БУДЕТ ДОБАВЛЕНА</b></center>') {
                 document.getElementById('page_error').innerHTML = data;
                 document.getElementById('page_body').innerHTML = '';
                 setTimeout('history.back()',1000);

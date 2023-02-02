@@ -2,10 +2,12 @@ from django.contrib import admin
 from django.urls import path, include;
 from news.views import ShortSearch, CreateNews, EditNews, RemNews;
 
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('pages/', include('django.contrib.flatpages.urls')),
     path('news/', include('news.urls')),                            # пока что основная страница
+    path('articles/', include('news.urls')),
     path('', include('news.urls')),                                 # ВРЕМЕННО - чтобы каждый раз не вбивать news
     path('search/', ShortSearch.as_view()),                         # страница с результатами поиска и формой детального поиска
     path('news/create/', CreateNews.as_view()),                     # создание новости
@@ -18,3 +20,4 @@ urlpatterns = [
 #    path("accounts/", include("accounts.urls")),
     path("accounts/", include("allauth.urls")),
 ];
+

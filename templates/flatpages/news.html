@@ -47,6 +47,8 @@
 {% endif %}
 
 <br>
+
+
 <table cellspacing="0" width="100%">
 {% for news in news_all %}                  {# переберем все новости #}
     <tr><td colspan="2">
@@ -63,7 +65,7 @@
             Теги: {{ news.id | post_tags | safe }}
 
         </font><br>
-        <a class="h6" href="/news/{{ news.id }}">{{ news.header | censor }}</a><br>
+        <a class="h6" href="{% if news.type == 0 %}/news/{% else %}/articles/{% endif %}{{ news.id }}">{{ news.header | censor }}</a><br>
     </td></tr><tr><td colspan="2">
         <font class="H5"> {{ news.text | censor | truncatechars:80 }} - <i>(сокращенно)</i></font><br>
     </td></tr><tr><td>
@@ -89,6 +91,9 @@
     </td></tr>
 {% endfor %}
 </table>
+
+
+
 <br>
 
     {% if paginator.num_pages > 1 %}                                    {# если страниц больше, чем одна, то ... #}
@@ -116,7 +121,6 @@
         {% endif %}
         </center>
     {% endif %}
-
 
 
 
